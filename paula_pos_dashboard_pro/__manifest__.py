@@ -11,8 +11,8 @@ A detailed analytics dashboard for Point of Sale, including:
 - Cashier/session performance: per-cashier stats, per-session breakdown
 - Multi-store comparison: compare performance across POS locations
 """,
-    'author': 'Your Company',
-    'website': 'https://yourwebsite.com',
+    'author': 'Paula Systems',
+    'website': 'https://www.paulasystems.org',
     'support': 'support@paulasystems.org',
     'license': 'OPL-1',
     'depends': ['point_of_sale', 'web'],
