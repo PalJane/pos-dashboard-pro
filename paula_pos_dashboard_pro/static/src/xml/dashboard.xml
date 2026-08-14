@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="paula_pos_dashboard_pro.Dashboard" owl="1">
+    <div class="pos-dashboard-pro p-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>POS Dashboard</h2>
+            <div class="d-flex gap-2 align-items-center">
+                <input type="date" t-model="state.dateFrom" t-on-change="onFilterChange" class="form-control form-control-sm"/>
+                <span>to</span>
+                <input type="date" t-model="state.dateTo" t-on-change="onFilterChange" class="form-control form-control-sm"/>
+            </div>
+        </div>
+
+        <div t-if="state.loading" class="text-center p-5">
+            <i class="fa fa-spinner fa-spin fa-2x"/>
+        </div>
+
+        <div t-if="!state.loading and state.error" class="alert alert-danger m-3">
+            Failed to load dashboard: <t t-esc="state.error"/>
+        </div>
+
+        <div t-if="!state.loading and state.data">
+            <!-- Summary cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card p-4 text-center shadow-sm tile-blue">
+                        <div class="tile-label">Total Revenue</div>
+                        <div class="tile-value" t-esc="state.data.summary.total_revenue"/>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card p-4 text-center shadow-sm tile-teal">
+                        <div class="tile-label">Total Orders</div>
+                        <div class="tile-value" t-esc="state.data.summary.total_orders"/>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card p-4 text-center shadow-sm tile-purple">
+                        <div class="tile-label">Avg Order Value</div>
+                        <div class="tile-value" t-esc="state.data.summary.avg_order_value"/>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card p-4 text-center shadow-sm tile-amber">
+                        <div class="tile-label">Margin</div>
+                        <div class="tile-value" t-esc="state.data.summary.total_margin"/>
+                        <div class="tile-sub"><t t-esc="state.data.summary.total_margin_pct"/>%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment methods - overall -->
+            <div class="mb-2 text-muted small fw-bold">Payments by Method (All Terminals)</div>
+            <div class="row mb-3">
+                <t t-foreach="state.data.payment_methods" t-as="pm" t-key="pm.name">
+                    <div class="col-md-3 mb-2">
+                        <div class="card p-4 text-center shadow-sm" t-att-class="tileClassForMethod(pm.name)">
+                            <div class="tile-label" t-esc="pm.name"/>
+                            <div class="tile-value" style="font-size: 1.7rem;" t-esc="pm.amount.toFixed(2)"/>
+                            <div class="tile-sub"><t t-esc="pm.count"/> payments</div>
+                        </div>
+                    </div>
+                </t>
+            </div>
+
+            <!-- Payment methods - per terminal -->
+            <div class="card p-3 mb-4 shadow-sm">
+                <h5>Payments by Method, per Terminal</h5>
+                <table class="table table-sm">
+                    <thead><tr><th>Terminal</th><th>Method</th><th>Amount</th><th># Payments</th></tr></thead>
+                    <tbody>
+                        <tr t-foreach="state.data.payment_methods_by_terminal" t-as="pt" t-key="pt.config + pt.method">
+                            <td t-esc="pt.config"/>
+                            <td t-esc="pt.method"/>
+                            <td t-esc="pt.amount.toFixed(2)"/>
+                            <td t-esc="pt.count"/>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Charts -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card p-3 shadow-sm">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="mb-0">Revenue Trend</h5>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-secondary" t-att-class="state.trendView === 'hourly' ? 'active' : ''" t-on-click="() => this.setTrendView('hourly')">Hourly</button>
+                                <button class="btn btn-outline-secondary" t-att-class="state.trendView === 'daily' ? 'active' : ''" t-on-click="() => this.setTrendView('daily')">Daily</button>
+                                <button class="btn btn-outline-secondary" t-att-class="state.trendView === 'monthly' ? 'active' : ''" t-on-click="() => this.setTrendView('monthly')">Monthly</button>
+                                <button class="btn btn-outline-secondary" t-att-class="state.trendView === 'yearly' ? 'active' : ''" t-on-click="() => this.setTrendView('yearly')">Yearly</button>
+                            </div>
+                        </div>
+                        <canvas t-ref="hourlyChart"/>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card p-3 shadow-sm">
+                        <h5>Revenue by Store</h5>
+                        <canvas t-ref="storeChart"/>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top 5 highest margin products -->
+            <div class="card p-3 mb-4 shadow-sm">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5>Top <t t-esc="state.showAllMargin ? state.data.top_margin_products.length : 5"/> Highest Margin Products</h5>
+                    <button class="btn btn-sm btn-link" t-on-click="toggleShowAllMargin">
+                        <t t-esc="state.showAllMargin ? 'Show less' : 'Show more'"/>
+                    </button>
+                </div>
+                <table class="table table-sm">
+                    <thead><tr><th>Product</th><th>Margin</th><th>Margin %</th></tr></thead>
+                    <tbody>
+                        <tr t-foreach="state.showAllMargin ? state.data.top_margin_products : state.data.top_margin_products.slice(0, 5)" t-as="p" t-key="p.name">
+                            <td t-esc="p.name"/>
+                            <td t-att-class="p.margin >= 0 ? 'margin-positive' : 'margin-negative'" t-esc="p.margin"/>
+                            <td t-att-class="p.margin >= 0 ? 'margin-positive' : 'margin-negative'" t-esc="p.margin_pct + '%'"/>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Top products -->
+            <div class="card p-3 mb-4 shadow-sm">
+                <h5>Top Products</h5>
+                <table class="table table-sm">
+                    <thead><tr><th>Product</th><th>Qty Sold</th><th>Revenue</th><th>Margin</th><th>Margin %</th></tr></thead>
+                    <tbody>
+                        <tr t-foreach="state.data.top_products" t-as="p" t-key="p.name">
+                            <td t-esc="p.name"/>
+                            <td t-esc="p.qty"/>
+                            <td t-esc="p.revenue.toFixed(2)"/>
+                            <td t-att-class="p.margin >= 0 ? 'margin-positive' : 'margin-negative'" t-esc="p.margin"/>
+                            <td t-att-class="p.margin >= 0 ? 'margin-positive' : 'margin-negative'" t-esc="p.margin_pct + '%'"/>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Cashier performance -->
+            <div class="card p-3 mb-4 shadow-sm">
+                <h5>Cashier Performance</h5>
+                <table class="table table-sm">
+                    <thead><tr><th>Cashier</th><th>Orders</th><th>Revenue</th></tr></thead>
+                    <tbody>
+                        <tr t-foreach="state.data.cashier_performance" t-as="c" t-key="c.name">
+                            <td t-esc="c.name"/>
+                            <td t-esc="c.orders"/>
+                            <td t-esc="c.revenue.toFixed(2)"/>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Session performance -->
+            <div class="card p-3 mb-4 shadow-sm">
+                <h5>Recent Sessions</h5>
+                <table class="table table-sm">
+                    <thead><tr><th>Session</th><th>Store</th><th>Cashier</th><th>Orders</th><th>Revenue</th><th>Cash Diff</th></tr></thead>
+                    <tbody>
+                        <tr t-foreach="state.data.session_performance" t-as="s" t-key="s.name">
+                            <td t-esc="s.name"/>
+                            <td t-esc="s.config"/>
+                            <td t-esc="s.cashier"/>
+                            <td t-esc="s.total_orders"/>
+                            <td t-esc="s.total_revenue"/>
+                            <td t-att-class="s.cash_difference >= 0 ? 'margin-positive' : 'margin-negative'" t-esc="s.cash_difference"/>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Store comparison -->
+            <div class="card p-3 shadow-sm mb-4">
+                <h5>Store Comparison</h5>
+                <table class="table table-sm">
+                    <thead><tr><th>Store</th><th>Orders</th><th>Revenue</th></tr></thead>
+                    <tbody>
+                        <tr t-foreach="state.data.store_comparison" t-as="s" t-key="s.name">
+                            <td t-esc="s.name"/>
+                            <td t-esc="s.orders"/>
+                            <td t-esc="s.revenue.toFixed(2)"/>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Per-terminal performance over time -->
+            <div class="card p-3 shadow-sm">
+                <h5>Revenue by Terminal Over Time</h5>
+                <canvas t-ref="terminalChart"/>
+            </div>
+        </div>
+    </div>
+</t>
+
+</templates>

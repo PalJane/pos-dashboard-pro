@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_paula_pos_dashboard_pro" model="ir.actions.client">
+        <field name="name">POS Dashboard</field>
+        <field name="tag">paula_pos_dashboard_pro</field>
+    </record>
+
+    <menuitem id="menu_paula_pos_dashboard_pro_root"
+              name="POS Dashboard"
+              action="action_paula_pos_dashboard_pro"
+              parent="point_of_sale.menu_point_root"
+              sequence="1"/>
+</odoo>
